@@ -1,0 +1,39 @@
+# ---- .NET / Visual Studio ----
+bin/
+obj/
+out/
+publish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+win-x64/
+[Bb]in/
+[Oo]bj/
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+
+# Local runtime artifacts (this app writes to %APPDATA%, but ignore any stray copies)
+config.json
+*.log
+
+# OS cruft
+Thumbs.db
+desktop.ini

@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- =========================================================================
+       Triston's FoundryRPC
+       Author:  triston-dev  (https://github.com/triston-dev)
+       Windows tray app: Discord Rich Presence for the Foundry VTT world you run.
+       ========================================================================= -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>                <!-- WinExe = no console window -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- The compiled assembly / exe file name -->
+    <AssemblyName>Tristons FoundryRPC</AssemblyName>
+    <!-- Namespaces cannot contain spaces/apostrophes -->
+    <RootNamespace>TristonsFoundryRPC</RootNamespace>
+
+    <!-- Tray icon embedded into the exe (also used as the exe's file icon) -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- ===== Assembly metadata (surfaces in the exe's File Properties) ===== -->
+    <Product>Triston's FoundryRPC</Product>
+    <AssemblyTitle>Triston's FoundryRPC</AssemblyTitle>
+    <Authors>triston-dev</Authors>
+    <Company>triston-dev</Company>
+    <Copyright>Copyright © triston-dev — https://github.com/triston-dev</Copyright>
+    <Description>Lightweight Windows tray app that shows which Foundry VTT world/campaign you are running as Discord Rich Presence. Author: triston-dev.</Description>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+
+    <!-- Publish defaults so a self-contained win-x64 publish yields a single
+         exe with the icon embedded (see README for the exact command). -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Maintained Discord Rich Presence library (Lachee / discord-rpc-csharp) -->
+    <PackageReference Include="DiscordRichPresence" Version="1.2.1.24" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed the icon so NotifyIcon can load a crisp 16px/32px version even from
+         a single-file publish (where there is no loose file on disk). -->
+    <EmbeddedResource Include="app.ico" />
+  </ItemGroup>
+
+</Project>
