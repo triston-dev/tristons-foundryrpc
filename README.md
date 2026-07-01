@@ -1,150 +1,121 @@
 # Triston's FoundryRPC
 
-**Author: [triston-dev](https://github.com/triston-dev)**
+**by [triston-dev](https://github.com/triston-dev)**
 
-A lightweight, standalone Windows tray application that shows which **Foundry VTT**
-world/campaign you are currently running as **Discord Rich Presence** — e.g.
-*"Running The Third Expeditionary Fleet — 3 online"* with a live session timer.
+Show off which **Foundry VTT** campaign you're running — right on your Discord
+profile. Triston's FoundryRPC is a tiny Windows tray app that sets your Discord
+Rich Presence to the world you have loaded, with a live session timer:
 
-- Background tray app only — **no Foundry module to install, no browser extension**.
-- Original, independent implementation. MIT licensed.
-- Built for **Foundry VTT v13** (developed & tested against v13.351).
+> **Playing Triston's FoundryRPC**
+> Running The Third Expeditionary Fleet
+> 3 online · ⏱ 1:18
+
+- Sits quietly in the system tray — no window, no console.
+- Nothing to install inside Foundry beyond the bridge you may already use.
+- Works no matter **where your Foundry server is hosted** — localhost, VPS, or
+  partner-hosted at any URL.
+- Presence clears automatically when you close your world.
 
 ---
 
-## How detection works
+## Requirements
 
-The app polls a local endpoint every ~15 seconds, asks *"what world is running?"*,
-and mirrors the answer to Discord:
+| What | Why |
+|---|---|
+| Windows 10/11 | It's a Windows tray app |
+| [Discord desktop app](https://discord.com/download) | Rich Presence only works with the desktop client, running on the same PC |
+| [**Triston's Bridge Fork**](https://github.com/triston-dev/tristons-bridge-fork) | **Required dependency** — this is how the app knows which world is running |
 
-- **Primary (default): the Foundry MCP bridge control channel.**
-  If you run [Triston's Bridge Fork](https://github.com/triston-dev/tristons-bridge-fork)
-  of the Foundry MCP bridge (**required dependency** for world detection), its
-  local backend exposes a TCP JSON-lines control channel on `127.0.0.1:31414`.
-  The app opens a plain socket and calls the `get-world-info` tool:
+## Installation
 
-  ```
-  → {"id":"1","method":"call_tool","params":{"name":"get-world-info","args":{}}}
-  ← {"id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"campaign_2\",\"title\":\"My Campaign\",...}"}]}}
-  ```
+### Step 1 — Install Triston's Bridge Fork
 
-  This works **no matter where your Foundry server is hosted** (localhost, VPS,
-  partner-hosted) because the bridge module inside Foundry connects out to your
-  machine. It also returns the world's **human-readable title** directly, so no
-  slug-to-title mapping is normally needed.
+This app detects your world through
+[Triston's Bridge Fork](https://github.com/triston-dev/tristons-bridge-fork)
+of the Foundry ↔ Claude MCP bridge. If you already run it, skip ahead.
+Otherwise, follow its
+[installation guide](https://github.com/triston-dev/tristons-bridge-fork#installation)
+— in short:
 
-- **Idle detection.** Any of the following clears your Discord presence:
-  - the control channel is unreachable (connection refused / timeout),
-  - the bridge answers but reports no connected world ("module not connected"),
-  - the payload has no world id (Foundry sitting at the setup screen).
+1. Download `foundry-mcp-bridge.zip` (Foundry module) and
+   `foundry-mcp-server.zip` (local server) from its
+   [latest release](https://github.com/triston-dev/tristons-bridge-fork/releases/latest)
+   and install both halves per the guide.
+2. In Foundry: **Manage Modules → enable "Triston's Bridge Fork"**, then in
+   **Game Settings → Triston's Bridge Fork**, make sure **Enable MCP Bridge**
+   is on and shows **Connected**.
 
-  A small hysteresis (`idleAfterMissedPolls`, default 2) keeps one transient blip
-  from flickering your presence off and back on.
+### Step 2 — Get Triston's FoundryRPC
 
-- **Session timer.** Foundry's own `uptime` is *server process* uptime, not
-  world-session time, so the app never uses it. Instead it records the local
-  timestamp when it sees idle→active or a world-id change, and hands that to
-  Discord as the elapsed-timer start. The timer resets when the world changes or
-  goes idle.
+**Option A — download:** grab `Tristons FoundryRPC.exe` from this repo's
+[Releases](https://github.com/triston-dev/tristons-foundryrpc/releases) page
+and put it anywhere you like (it's fully self-contained).
 
-- **Minimal updates.** A Discord update is pushed only when something meaningful
-  changes: world id, active state, or user count.
-
-> **Note on Foundry's `/api/status`:** stock Foundry v13 also exposes an
-> unauthenticated `GET http://<host>:30000/api/status` returning
-> `{"active":true,"world":"campaign_2","system":"dnd5e","users":1,"uptime":…}`.
-> This app intentionally uses the bridge instead (per-world URLs made the HTTP
-> endpoint awkward for this setup, and the bridge returns the pretty title), but
-> the polling architecture would accept such a source with a small adapter in
-> `BridgeClient`/`WorldStatus` if you ever want it.
-
-## Prerequisites
-
-- **Windows 10/11**
-- **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)** (to build;
-  the published exe below is self-contained and needs no runtime)
-- **Discord desktop app** running on the same machine
-- **[Triston's Bridge Fork](https://github.com/triston-dev/tristons-bridge-fork)**
-  — the Foundry MCP bridge this app depends on for world detection; its backend
-  must be reachable on `127.0.0.1:31414` (host/port configurable)
-
-## Building & running
+**Option B — build it yourself** (needs the free
+[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)):
 
 ```powershell
-git clone <this repo>
-cd "Tristons FoundryRPC"
-dotnet build "Tristons FoundryRPC.sln" -c Release
-dotnet run --project "Tristons FoundryRPC"
+git clone https://github.com/triston-dev/tristons-foundryrpc.git
+cd tristons-foundryrpc
+dotnet publish "Tristons FoundryRPC" -c Release -r win-x64 --self-contained
 ```
 
-The app appears in the system tray (no window, no console). Right-click the icon
-for the menu:
+Your exe lands in
+`Tristons FoundryRPC\bin\Release\net8.0-windows\win-x64\publish\`.
+
+### Step 3 — Run it
+
+Double-click the exe. A tray icon appears; within ~15 seconds of loading a
+world in Foundry, your Discord presence shows it. That's the whole install.
+
+To have it start with Windows: right-click the tray icon →
+**Run at Windows startup**.
+
+## Using the tray menu
+
+Right-click the tray icon:
 
 | Menu item | What it does |
 |---|---|
 | *(status line)* | Shows the current world / idle state |
-| **Enable Rich Presence** | Toggle Discord presence on/off (persisted) |
-| **Configure Foundry Host/Port…** | Change where the bridge control channel lives |
-| **World Display Names** | Open `config.json` to edit display-name overrides |
-| **Run at Windows startup** | Adds/removes a per-user registry Run entry |
-| **About…** | Author credit + GitHub link |
-| **View log…** | Opens the diagnostic log |
-| **Quit** | Stops polling, clears presence, exits cleanly |
+| **Enable Rich Presence** | Turn the Discord presence on or off |
+| **Configure Foundry Host/Port…** | Where the bridge lives (default `127.0.0.1:31414`) |
+| **World Display Names** | Override what a world is called on Discord |
+| **Run at Windows startup** | Start automatically with Windows |
+| **About…** | Version, author, GitHub link |
+| **View log…** | Open the diagnostic log |
+| **Quit** | Clears your presence and exits |
 
-### Self-contained single-file exe
+## Customizing your presence
 
-```powershell
-dotnet publish "Tristons FoundryRPC" -c Release -r win-x64 --self-contained
+Settings live in `%APPDATA%\Tristons FoundryRPC\config.json` (created on first
+run; edit with any text editor, then restart the app). The lines Discord shows
+are simple templates:
+
+```json
+"detailsTemplate": "Running {world}",
+"stateTemplate": "{users} online",
+"showState": true
 ```
 
-Output: `Tristons FoundryRPC\bin\Release\net8.0-windows\win-x64\publish\Tristons FoundryRPC.exe`
-— a single exe with the tray icon embedded (the icon is both the exe's file icon
-and an embedded resource, so it renders even from single-file publish). Copy it
-anywhere and run it.
-
-## Configuration
-
-Settings persist at `%APPDATA%\Tristons FoundryRPC\config.json`
-(created with defaults on first run):
-
-```jsonc
-{
-  "bridgeHost": "127.0.0.1",          // where the bridge control channel lives
-  "bridgePort": 31414,
-  "pollIntervalSeconds": 15,
-  "idleAfterMissedPolls": 2,           // grace polls before clearing presence
-  "rpcEnabled": true,
-  "discordApplicationId": "1521954755885273259",
-  "detailsTemplate": "Running {world}",
-  "stateTemplate": "{users} online",
-  "showState": true,                   // turn the State line off entirely
-  "largeImageKey": "https://foundryvtt.com/static/assets/icons/fvtt.png", // image URL or portal asset key
-  "largeImageText": "Foundry VTT — {world}",
-  "smallImageKey": "",                 // optional, e.g. a game-system icon
-  "smallImageText": "",
-  "worldDisplayNames": {},             // world id -> display title overrides
-  "showBalloonOnWorldChange": true,
-  "logVerbosity": "Info"               // "Error" | "Info" | "Debug"
-}
-```
-
-### Presence text templates
-
-`detailsTemplate`, `stateTemplate`, `largeImageText`, and `smallImageText` accept
-these tokens:
-
-| Token | Meaning | Example |
+| Token | Becomes | Example |
 |---|---|---|
-| `{world}` | Resolved world display title | `The Third Expeditionary Fleet` |
-| `{system}` | Game system id | `dnd5e` |
-| `{users}` | Active (connected) user count | `3` |
+| `{world}` | World title | `Curse of Strahd` |
+| `{users}` | Players connected right now | `4` |
+| `{system}` | Game system | `dnd5e` |
 | `{version}` | Foundry version | `13.351` |
 
-### World display-name overrides
+**Presence artwork:** `largeImageKey` accepts any public image URL — the
+default is the official Foundry logo. Point it at your campaign art if you
+like:
 
-The bridge already returns the pretty world title, so overrides are rarely
-needed — but if you want to display something different, map the **raw world id**
-to your preferred title:
+```json
+"largeImageKey": "https://example.com/my-campaign-banner.png",
+"largeImageText": "Foundry VTT — {world}"
+```
+
+**Rename a world on Discord:** map its id (logged the first time the world is
+seen — tray → *View log…*) to any title:
 
 ```json
 "worldDisplayNames": {
@@ -152,58 +123,34 @@ to your preferred title:
 }
 ```
 
-The raw world id is written to the log the **first time each world is seen**, so
-you know exactly what key to use. Resolution order:
-**override → bridge title → raw id**.
+**Use your own Discord application:** create one in the
+[Discord Developer Portal](https://discord.com/developers/applications) — its
+*name* is what shows after "Playing" — and put its Application ID in
+`discordApplicationId`.
 
-### Changing the Discord Application ID & art assets
+## Troubleshooting
 
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
-   and create (or open) an application. Its **name** is what Discord shows as
-   *"Playing …"*.
-2. Copy the **Application ID** into `discordApplicationId` in `config.json`
-   (the built-in default lives in `DiscordPresenceManager.DefaultApplicationId`).
-3. Presence art: `largeImageKey` / `smallImageKey` accept **either** a full
-   `https://` image URL (the default is the official Foundry logo URL — works
-   with zero portal setup; verified live 2026-07) **or** the key of an art
-   asset uploaded under **Rich Presence → Art Assets** in the portal.
-4. Restart the tray app (config is read at startup).
+- **Discord shows nothing while a world is running** — check
+  **Game Settings → Triston's Bridge Fork** in Foundry: if the bridge status
+  isn't **Connected**, toggle **Enable MCP Bridge** off and on. The app
+  recovers on its own within a poll or two.
+- **"Playing …" never appears at all** — make sure the Discord *desktop* app is
+  running (browser Discord can't show Rich Presence), and that
+  **Enable Rich Presence** is checked in the tray menu.
+- **Still stuck?** Tray → **View log…** (set `"logVerbosity": "Debug"` in
+  config.json for a play-by-play). The log lives at
+  `%APPDATA%\Tristons FoundryRPC\foundryrpc.log`.
 
-## Diagnostics
-
-- Log file: `%APPDATA%\Tristons FoundryRPC\foundryrpc.log`
-  (rolls to `.old` at ~1 MB). Set `"logVerbosity": "Debug"` to watch every poll.
-- The app never opens a console window; all diagnostics go to that file.
-- Single-instance: a second launch shows a message box and exits.
-- Clean shutdown (tray → Quit) stops polling and clears your Discord presence.
-- Handles gracefully: Foundry/bridge not running, connection refused, malformed
-  or partial JSON, world not loaded, and Discord not (yet) running — the RPC
-  client reconnects automatically when Discord appears and the presence is
-  re-applied.
-
-## Project layout
-
-| File | Responsibility |
-|---|---|
-| `Program.cs` | Entry point, single-instance mutex, bootstrap |
-| `TrayApp.cs` | NotifyIcon, context menu, UI-thread wiring |
-| `FoundryStatusWatcher.cs` | Poll loop, change detection, session timestamp, hysteresis |
-| `BridgeClient.cs` | TCP JSON-lines protocol to the bridge control channel |
-| `WorldStatus.cs` | Parsed world snapshot + "meaningful change" rules |
-| `WorldNameResolver.cs` | Override map → bridge title → raw id |
-| `DiscordPresenceManager.cs` | Rich Presence via [discord-rpc-csharp](https://github.com/Lachee/discord-rpc-csharp) |
-| `StartupManager.cs` | Run-at-startup registry toggle |
-| `Config.cs` / `Logger.cs` | JSON settings & rolling file log |
-
-## Author / Credits
+## Credits
 
 **Triston's FoundryRPC** is written and maintained by
 **[triston-dev](https://github.com/triston-dev)**.
 
 - World detection depends on
-  [Triston's Bridge Fork](https://github.com/triston-dev/tristons-bridge-fork)
-  of the Foundry MCP bridge (control channel on `127.0.0.1:31414`).
-- Discord RPC via the excellent [discord-rpc-csharp (DiscordRichPresence)](https://github.com/Lachee/discord-rpc-csharp) library by Lachee.
+  [**Triston's Bridge Fork**](https://github.com/triston-dev/tristons-bridge-fork)
+  of the Foundry MCP bridge.
+- Discord Rich Presence via
+  [discord-rpc-csharp](https://github.com/Lachee/discord-rpc-csharp) by Lachee.
 - Not affiliated with Foundry Gaming LLC or Discord Inc. "Foundry VTT" and
   "Discord" are trademarks of their respective owners.
 
