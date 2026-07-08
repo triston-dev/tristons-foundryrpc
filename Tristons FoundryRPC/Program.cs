@@ -42,6 +42,27 @@ internal static class Program
         var log = new Logger(Config.LogPath, LogLevel.Info);
         log.Info("==================== Triston's FoundryRPC starting ====================");
 
+        // Tripwire: verify the banner actually reached the disk. During real-world
+        // debugging we hit an environment where every file write from this process
+        // silently vanished (no exception, no bytes) — likely security software.
+        // Without this check that failure mode is invisible.
+        try
+        {
+            if (!System.IO.File.Exists(Config.LogPath) ||
+                DateTime.Now - System.IO.File.GetLastWriteTime(Config.LogPath) > TimeSpan.FromMinutes(1))
+            {
+                MessageBox.Show(
+                    "Triston's FoundryRPC cannot write its settings/log files in " +
+                    $"{Config.AppDataDir}.\n\nSettings changes will not be saved. This is " +
+                    "usually caused by security software blocking the app — add an exclusion " +
+                    "for it and start it again.",
+                    "Triston's FoundryRPC",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+        catch { /* the tripwire itself must never take the app down */ }
+
         Config config;
         try
         {
