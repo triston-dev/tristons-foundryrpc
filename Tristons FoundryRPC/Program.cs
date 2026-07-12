@@ -68,7 +68,7 @@ internal static class Program
         {
             config = Config.Load(log);
             log.Level = MapLevel(config.LogVerbosity);
-            log.Info($"Config loaded. Bridge={config.BridgeHost}:{config.BridgePort}, " +
+            log.Info($"Config loaded. Servers=[{string.Join(", ", config.FoundryServers)}], " +
                      $"poll={config.PollIntervalSeconds}s, rpcEnabled={config.RpcEnabled}, " +
                      $"appId={config.DiscordApplicationId}.");
         }

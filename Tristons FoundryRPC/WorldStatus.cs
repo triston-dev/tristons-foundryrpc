@@ -1,7 +1,7 @@
 // =============================================================================
 //  Triston's FoundryRPC  —  WorldStatus.cs
 //  Immutable snapshot of what Foundry is doing right now, parsed from the
-//  bridge's get-world-info payload. Also defines what counts as a "meaningful
+//  server's /api/status endpoint. Also defines what counts as a "meaningful
 //  change" so we only push Discord updates when world id / active / user count
 //  actually change.
 //
@@ -19,12 +19,20 @@ namespace TristonsFoundryRPC;
 public sealed record WorldStatus
 {
     public bool Active { get; init; }
+
+    /// <summary>The world id/slug from /api/status (e.g. "campaign_2"), NOT the title.</summary>
     public string? WorldId { get; init; }
+
+    /// <summary>Pretty title when known (scraped from the join page); often null.</summary>
     public string? Title { get; init; }
+
     public string? SystemId { get; init; }
     public string? SystemVersion { get; init; }
     public string? FoundryVersion { get; init; }
     public int UsersActive { get; init; }
+
+    /// <summary>Base URL of the server that reported this status (null when idle).</summary>
+    public string? SourceUrl { get; init; }
 
     /// <summary>The canonical "nothing is running" snapshot.</summary>
     public static readonly WorldStatus Idle = new() { Active = false };
@@ -39,50 +47,40 @@ public sealed record WorldStatus
         UsersActive != prev.UsersActive;
 
     /// <summary>
-    /// Parse the inner JSON string returned by get-world-info. The bridge wraps
-    /// the world object as a JSON string inside result.content[0].text, so this
-    /// receives that already-unwrapped string. Returns <see cref="Idle"/> if the
-    /// payload has no usable world id.
+    /// Parse Foundry v13's GET /api/status response:
+    ///   { "active": true, "version": "13.351", "world": "campaign_2",
+    ///     "system": "dnd5e", "systemVersion": "...", "users": 1, "uptime": ... }
+    /// "active": false or a missing/empty "world" both mean no world is loaded
+    /// (Foundry sitting at the setup screen still answers with active:false).
+    /// NOTE: "uptime" is deliberately ignored — it is server process uptime, not
+    /// session time; the watcher tracks the session start locally.
+    /// Throws JsonException on malformed input (caller treats that as idle).
     /// </summary>
-    public static WorldStatus FromWorldInfoJson(string worldInfoJson)
+    public static WorldStatus FromApiStatusJson(string json, string sourceUrl)
     {
-        using var doc = JsonDocument.Parse(worldInfoJson);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        string? worldId = GetString(root, "id");
-        string? title = GetString(root, "title");
+        bool active = root.TryGetProperty("active", out var a) && a.ValueKind == JsonValueKind.True;
+        string? world = GetString(root, "world");
 
-        // No world id => Foundry is at /setup or otherwise has no world loaded.
-        if (string.IsNullOrWhiteSpace(worldId))
+        if (!active || string.IsNullOrWhiteSpace(world))
             return Idle;
 
-        string? systemId = null, systemVersion = null;
-        if (root.TryGetProperty("system", out var sys) && sys.ValueKind == JsonValueKind.Object)
-        {
-            systemId = GetString(sys, "id");
-            systemVersion = GetString(sys, "version");
-        }
-
-        string? foundryVersion = null;
-        if (root.TryGetProperty("foundry", out var f) && f.ValueKind == JsonValueKind.Object)
-            foundryVersion = GetString(f, "version");
-
-        int usersActive = 0;
-        if (root.TryGetProperty("users", out var users) && users.ValueKind == JsonValueKind.Object)
-        {
-            if (users.TryGetProperty("active", out var a) && a.TryGetInt32(out var av))
-                usersActive = av;
-        }
+        int users = 0;
+        if (root.TryGetProperty("users", out var u) && u.ValueKind == JsonValueKind.Number)
+            u.TryGetInt32(out users);
 
         return new WorldStatus
         {
             Active = true,
-            WorldId = worldId,
-            Title = title,
-            SystemId = systemId,
-            SystemVersion = systemVersion,
-            FoundryVersion = foundryVersion,
-            UsersActive = usersActive,
+            WorldId = world,
+            Title = null, // /api/status has no title; enriched from the join page
+            SystemId = GetString(root, "system"),
+            SystemVersion = GetString(root, "systemVersion"),
+            FoundryVersion = GetString(root, "version"),
+            UsersActive = users,
+            SourceUrl = sourceUrl,
         };
     }
 

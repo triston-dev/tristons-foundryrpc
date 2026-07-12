@@ -23,7 +23,7 @@ public sealed class TrayApp : ApplicationContext
     private readonly Config _config;
     private readonly Logger _log;
     private readonly WorldNameResolver _resolver;
-    private readonly BridgeClient _bridge;
+    private readonly FoundryHttpClient _foundry;
     private readonly FoundryStatusWatcher _watcher;
     private readonly DiscordPresenceManager _discord;
 
@@ -48,8 +48,8 @@ public sealed class TrayApp : ApplicationContext
         _log = log;
 
         _resolver = new WorldNameResolver(config, log);
-        _bridge = new BridgeClient(config, log);
-        _watcher = new FoundryStatusWatcher(config, _bridge, log);
+        _foundry = new FoundryHttpClient(config, log);
+        _watcher = new FoundryStatusWatcher(config, _foundry, log);
         _discord = new DiscordPresenceManager(config, log);
 
         // Force handle creation on the current (UI) thread so BeginInvoke works.
@@ -93,7 +93,7 @@ public sealed class TrayApp : ApplicationContext
         };
         menu.Items.Add(enableItem);
 
-        menu.Items.Add(new ToolStripMenuItem("Configure Foundry Host/Port…", null, OnConfigureBridge));
+        menu.Items.Add(new ToolStripMenuItem("Configure Foundry Server URLs…", null, OnConfigureServers));
 
         var overrides = new ToolStripMenuItem("World Display Names");
         overrides.DropDownItems.Add(new ToolStripMenuItem("Edit config.json…", null, (_, _) => OpenConfigFile()));
@@ -185,16 +185,15 @@ public sealed class TrayApp : ApplicationContext
         RunOnUi(() => UpdateUi(_lastStatus, _lastName));
     }
 
-    private void OnConfigureBridge(object? sender, EventArgs e)
+    private void OnConfigureServers(object? sender, EventArgs e)
     {
-        using var form = new BridgeConfigForm(_config.BridgeHost, _config.BridgePort);
+        using var form = new ServersConfigForm(_config.FoundryServers);
         if (form.ShowDialog() == DialogResult.OK)
         {
-            _config.BridgeHost = form.BridgeHost;
-            _config.BridgePort = form.BridgePort;
+            _config.FoundryServers = form.ServerUrls;
             _config.Save(_log);
-            _log.Info($"Bridge endpoint set to {_config.BridgeHost}:{_config.BridgePort}.");
-            _watcher.RequestImmediatePoll(); // BridgeClient reads config live.
+            _log.Info($"Foundry servers set: [{string.Join(", ", _config.FoundryServers)}]");
+            _watcher.RequestImmediatePoll(); // FoundryHttpClient reads config live.
         }
     }
 
@@ -301,6 +300,7 @@ public sealed class TrayApp : ApplicationContext
         // Clear + dispose Discord presence.
         try { _discord.Dispose(); } catch (Exception ex) { _log.Error("Discord dispose failed", ex); }
 
+        try { _foundry.Dispose(); } catch { }
         try { _notifyIcon.Dispose(); } catch { }
         try { _icon.Dispose(); } catch { }
 
@@ -315,6 +315,7 @@ public sealed class TrayApp : ApplicationContext
             // Application.Run returned without a menu Quit (rare) — clean up.
             try { _watcher.StopAsync().GetAwaiter().GetResult(); } catch { }
             try { _discord.Dispose(); } catch { }
+            try { _foundry.Dispose(); } catch { }
             try { _notifyIcon.Dispose(); } catch { }
             try { _icon.Dispose(); } catch { }
             try { _watcher.Dispose(); } catch { }

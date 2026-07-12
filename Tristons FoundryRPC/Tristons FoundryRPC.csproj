@@ -30,9 +30,9 @@
     <Company>triston-dev</Company>
     <Copyright>Copyright © triston-dev — https://github.com/triston-dev</Copyright>
     <Description>Lightweight Windows tray app that shows which Foundry VTT world/campaign you are running as Discord Rich Presence. Author: triston-dev.</Description>
-    <Version>1.0.1</Version>
-    <FileVersion>1.0.1.0</FileVersion>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <Version>2.0.0</Version>
+    <FileVersion>2.0.0.0</FileVersion>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
 
     <!-- Publish defaults so a self-contained win-x64 publish yields a single
          exe with the icon embedded (see README for the exact command). -->

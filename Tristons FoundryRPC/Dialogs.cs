@@ -9,52 +9,56 @@
 // =============================================================================
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace TristonsFoundryRPC;
 
-/// <summary>Modal editor for the bridge host and port.</summary>
-public sealed class BridgeConfigForm : Form
+/// <summary>Modal editor for the list of Foundry server base URLs.</summary>
+public sealed class ServersConfigForm : Form
 {
-    private readonly TextBox _host = new();
-    private readonly NumericUpDown _port = new();
+    private readonly TextBox _urls = new();
 
-    public string BridgeHost => _host.Text.Trim();
-    public int BridgePort => (int)_port.Value;
+    /// <summary>Non-empty, trimmed URLs, one per textbox line.</summary>
+    public List<string> ServerUrls =>
+        _urls.Lines.Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
 
-    public BridgeConfigForm(string host, int port)
+    public ServersConfigForm(IEnumerable<string> current)
     {
-        Text = "Configure Foundry Bridge";
+        Text = "Configure Foundry Server URLs";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(360, 170);
+        ClientSize = new Size(460, 260);
         Font = SystemFonts.MessageBoxFont ?? SystemFonts.DefaultFont;
 
         var info = new Label
         {
-            Text = "The MCP bridge control channel (Triston's Bridge Fork).\nDefault: 127.0.0.1 : 31414",
-            Left = 12, Top = 12, Width = 336, Height = 36, AutoSize = false,
+            Text = "One Foundry server URL per line (the address you open to play).\n" +
+                   "Examples:  https://my-world.sqyre.app   ·   http://localhost:30000\n" +
+                   "All are checked each poll; the first with an active world is shown.",
+            Left = 12, Top = 12, Width = 436, Height = 52, AutoSize = false,
         };
 
-        var hostLabel = new Label { Text = "Host:", Left = 12, Top = 60, Width = 50, TextAlign = ContentAlignment.MiddleLeft };
-        _host.Left = 70; _host.Top = 56; _host.Width = 278; _host.Text = host;
+        _urls.Left = 12; _urls.Top = 70; _urls.Width = 436; _urls.Height = 140;
+        _urls.Multiline = true;
+        _urls.ScrollBars = ScrollBars.Vertical;
+        _urls.AcceptsReturn = true;
+        _urls.WordWrap = false;
+        _urls.Lines = current.ToArray();
 
-        var portLabel = new Label { Text = "Port:", Left = 12, Top = 96, Width = 50, TextAlign = ContentAlignment.MiddleLeft };
-        _port.Left = 70; _port.Top = 92; _port.Width = 100;
-        _port.Minimum = 1; _port.Maximum = 65535; _port.Value = Math.Clamp(port, 1, 65535);
-
-        var ok = new Button { Text = "Save", Left = 176, Top = 130, Width = 80, DialogResult = DialogResult.OK };
-        var cancel = new Button { Text = "Cancel", Left = 268, Top = 130, Width = 80, DialogResult = DialogResult.Cancel };
+        var ok = new Button { Text = "Save", Left = 276, Top = 222, Width = 80, DialogResult = DialogResult.OK };
+        var cancel = new Button { Text = "Cancel", Left = 368, Top = 222, Width = 80, DialogResult = DialogResult.Cancel };
 
         AcceptButton = ok;
         CancelButton = cancel;
 
-        Controls.AddRange(new Control[] { info, hostLabel, _host, portLabel, _port, ok, cancel });
+        Controls.AddRange(new Control[] { info, _urls, ok, cancel });
     }
 }
 

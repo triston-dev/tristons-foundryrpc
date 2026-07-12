@@ -1,9 +1,11 @@
 // =============================================================================
 //  Triston's FoundryRPC  —  FoundryStatusWatcher.cs
-//  Polls the bridge every N seconds and raises StatusChanged only when something
-//  meaningful changes (world id / active / user count). Owns the locally-detected
-//  "world launch" timestamp used for Discord's elapsed timer, and applies
-//  hysteresis so a transient bridge dropout does not clear an active presence.
+//  Polls the configured Foundry servers every N seconds and raises StatusChanged
+//  only when something meaningful changes (world id / active / user count).
+//  Owns the locally-detected "world launch" timestamp used for Discord's elapsed
+//  timer (Foundry's own "uptime" is process uptime and is never used), and
+//  applies hysteresis so a transient server blip does not clear an active
+//  presence.
 //
 //  NOTE: StatusChanged is raised on a background thread; subscribers that touch
 //  UI must marshal to the UI thread themselves.
@@ -36,7 +38,7 @@ public sealed class WorldStatusChangedEventArgs : EventArgs
 public sealed class FoundryStatusWatcher : IDisposable
 {
     private readonly Config _config;
-    private readonly BridgeClient _bridge;
+    private readonly FoundryHttpClient _foundry;
     private readonly Logger _log;
 
     private WorldStatus _current = WorldStatus.Idle;
@@ -53,10 +55,10 @@ public sealed class FoundryStatusWatcher : IDisposable
 
     public event EventHandler<WorldStatusChangedEventArgs>? StatusChanged;
 
-    public FoundryStatusWatcher(Config config, BridgeClient bridge, Logger log)
+    public FoundryStatusWatcher(Config config, FoundryHttpClient foundry, Logger log)
     {
         _config = config;
-        _bridge = bridge;
+        _foundry = foundry;
         _log = log;
     }
 
@@ -128,30 +130,9 @@ public sealed class FoundryStatusWatcher : IDisposable
 
     private async Task PollOnceAsync(CancellationToken ct)
     {
-        var result = await _bridge.GetWorldInfoAsync(ct).ConfigureAwait(false);
-
-        WorldStatus next = WorldStatus.Idle;
-        if (result.Ok && !string.IsNullOrEmpty(result.Payload))
-        {
-            try
-            {
-                next = WorldStatus.FromWorldInfoJson(result.Payload!);
-            }
-            catch (Exception ex)
-            {
-                _log.Debug($"Failed to parse world info payload: {ex.Message}");
-                next = WorldStatus.Idle;
-            }
-        }
-        else if (!result.Reachable)
-        {
-            _log.Debug("Bridge not reachable this poll.");
-        }
-        else
-        {
-            // Reachable but the tool errored (e.g. "module not connected").
-            _log.Debug($"Bridge reachable but no active world: {result.Error}");
-        }
+        // The client already handles per-server errors and returns Idle on any
+        // failure, so this stays simple.
+        var next = await _foundry.GetActiveWorldAsync(ct).ConfigureAwait(false);
 
         if (next.Active)
             OnActive(next);

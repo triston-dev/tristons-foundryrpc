@@ -20,19 +20,18 @@ namespace TristonsFoundryRPC;
 
 public sealed class Config
 {
-    // ----- Data source: the Foundry MCP bridge control channel (TCP JSON-lines) -----
-    // Default matches Triston's Bridge Fork backend: 127.0.0.1:31414.
-    // Host/port are configurable in case the backend is bound elsewhere.
-    public string BridgeHost { get; set; } = "127.0.0.1";
-    public int BridgePort { get; set; } = 31414;
+    // ----- Data source: Foundry server base URLs, polled at GET <url>/api/status -----
+    // One entry per world/server, e.g. "https://my-world.sqyre.app" or
+    // "http://localhost:30000". All are polled in parallel; the first (in list
+    // order) reporting an active world wins.
+    public List<string> FoundryServers { get; set; } = new();
 
-    /// <summary>How often to poll the bridge for the active world, in seconds.</summary>
+    /// <summary>How often to poll the servers for the active world, in seconds.</summary>
     public int PollIntervalSeconds { get; set; } = 15;
 
     /// <summary>
     /// Hysteresis: how many consecutive failed polls before we declare IDLE and
-    /// clear presence. Prevents flicker when the bridge backend blips (it can be
-    /// torn down and respawned by the MCP client). 2 misses ≈ ~30s grace.
+    /// clear presence. Prevents flicker when a server blips. 2 misses ≈ ~30s grace.
     /// </summary>
     public int IdleAfterMissedPolls { get; set; } = 2;
 
@@ -172,10 +171,9 @@ public sealed class Config
         if (PollIntervalSeconds < 5) PollIntervalSeconds = 5;
         if (PollIntervalSeconds > 3600) PollIntervalSeconds = 3600;
         if (IdleAfterMissedPolls < 1) IdleAfterMissedPolls = 1;
-        if (BridgePort is < 1 or > 65535) BridgePort = 31414;
-        if (string.IsNullOrWhiteSpace(BridgeHost)) BridgeHost = "127.0.0.1";
         if (string.IsNullOrWhiteSpace(DiscordApplicationId))
             DiscordApplicationId = DiscordPresenceManager.DefaultApplicationId;
+        FoundryServers ??= new();
         WorldDisplayNames ??= new(StringComparer.OrdinalIgnoreCase);
     }
 }
